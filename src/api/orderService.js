@@ -1,26 +1,32 @@
 import api from './axiosConfig';
 
-
-export const createOrder = async (orderData) => {
-    const response = await api.post('/formule/order/create', orderData);
+// ======================================================
+// CHECKOUT (CREATE ORDER FROM CART)
+// ======================================================
+export const checkoutOrder = async (cart) => {
+    const response = await api.post('/orders/checkout', cart);
     return response.data;
 };
 
+// ======================================================
+// GET ORDER BY ID
+// ======================================================
 export const getOrderById = async (orderId) => {
-    const response = await api.get(`/formule/order/read/${orderId}`);
+    const response = await api.get(`/orders/${orderId}`);
     return response.data;
 };
 
-export const updateOrder = async (orderData) => {
-    const response = await api.put('/formule/order/update', orderData);
-    return response.data;
-};
-
+// ======================================================
+// DELETE ORDER
+// ======================================================
 export const deleteOrder = async (orderId) => {
-    await api.delete(`/formule/order/delete/${orderId}`);
+    await api.delete(`/orders/${orderId}`);
 };
 
+// ======================================================
+// GET ALL ORDERS (ADMIN/MANAGER)
+// ======================================================
 export const getAllOrders = async () => {
-    const response = await api.get('/formule/order/getall');
+    const response = await api.get('/orders');
     return response.data;
 };

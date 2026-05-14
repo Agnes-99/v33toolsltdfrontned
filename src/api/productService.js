@@ -22,11 +22,11 @@ export const createProduct = async (productData) => {
 };
 
 export const updateProduct = async (productData) => {
-    const response = await api.put('/product/update', productData);
+    const response = await api.put('/formule/product/update', productData);
     return response.data;
 };
 
 export const deleteProduct = async (id) => {
-    const response = await api.delete(`/product/delete/${id}`);
+    const response = await api.delete(`/formule/product/delete/${id}`);
     return response.data;
 };

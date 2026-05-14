@@ -2,25 +2,25 @@ import api from './axiosConfig';
 
 
 export const getAllCategories = async () => {
-    const response = await api.get('/formule/category/getAll');
+    const response = await api.get('/category/getAll');
     return response.data;
 };
 
 
 export const getCategoryById = async (id) => {
-    const response = await api.get(`/formule/category/read/${id}`);
+    const response = await api.get(`/category/read/${id}`);
     return response.data;
 };
 
 
 export const getCategoriesByName = async (name) => {
-    const response = await api.get(`/formule/category/search/name/${name}`);
+    const response = await api.get(`/category/search/name/${name}`);
     return response.data;
 };
 
 
 export const searchCategoriesByDescription = async (keyword) => {
-    const response = await api.get('/formule/category/search/description', {
+    const response = await api.get('/category/search/description', {
         params: { keyword }
     });
     return response.data;
@@ -28,18 +28,18 @@ export const searchCategoriesByDescription = async (keyword) => {
 
 
 export const createCategory = async (categoryData) => {
-    const response = await api.post('/formule/category/create', categoryData);
+    const response = await api.post('/category/create', categoryData);
     return response.data;
 };
 
 
 export const updateCategory = async (categoryData) => {
-    const response = await api.put('/formule/category/update', categoryData);
+    const response = await api.put('/category/update', categoryData);
     return response.data;
 };
 
 
 export const deleteCategory = async (id) => {
-    const response = await api.delete(`/formule/category/delete/${id}`);
+    const response = await api.delete(`/category/delete/${id}`);
     return response.data; 
 };

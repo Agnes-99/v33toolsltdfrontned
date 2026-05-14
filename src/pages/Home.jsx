@@ -1,82 +1,151 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFetchProducts } from '../hooks/useFetchProducts';
+import { getAllCategories } from '../api/categoryService'; 
 import { useCart } from '../context/CartContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { handleImageError } from '../utils/imageHelper';
 import warehouseBg from '../assets/Hero Images/HeroImage2.avif';
-
-const MOCK_INVENTORY = [
-  { id: 201, name: 'V33-Hydra 8000', price: 120000, category: 'Automatic', img: 'https://sl.bing.net/f8JL4io614m', specs: '8000 Bricks/Day | 15MPa Pressure', stock: 'In Stock' },
-  { id: 202, name: 'Eco-Block Semi-Pro', price: 48000, category: 'Semi-Auto', img: 'https://sl.bing.net/f8JL4io614m', specs: '3500 Blocks/Day | Dual-Vibration', stock: 'Available' },
-  { id: 203, name: 'V33 Interlocking Master', price: 72000, category: 'Interlocking', img: 'https://sl.bing.net/f8JL4io614m', specs: 'Soil-Cement Ratio | High Precision', stock: 'Limited' },
-  { id: 204, name: 'Mobile Egg-Layer M4', price: 35000, category: 'Mobile', img: 'https://sl.bing.net/f8JL4io614m', specs: 'No Pallets Needed | 4-Block Drop', stock: 'In Stock' },
-  { id: 205, name: 'Industrial Crusher C1', price: 98000, category: 'Preparation', img: 'https://sl.bing.net/f8JL4io614m', specs: 'Stone-to-Sand | 50t/Hour', stock: 'Pre-Order' },
-  { id: 206, name: 'Automatic Pallet Loader', price: 21000, category: 'Logistics', img: 'https://sl.bing.net/f8JL4io614m', specs: 'Sync-Speed | Steel Frame', stock: 'Available' }
-];
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-  const { products, loading } = useFetchProducts(MOCK_INVENTORY);
-  const [filter, setFilter] = useState('All');
+  const { products, loading: productsLoading, error } = useFetchProducts();
+  const { formatPrice } = useCurrency();
   const { addToCart } = useCart();
+  const navigate = useNavigate();
 
-  const categories = ['All', ...new Set(MOCK_INVENTORY.map(p => p.category))];
-  const filteredProducts = filter === 'All' ? products : products.filter(p => p.category === filter);
+  // --- STATE ---
+  const [categories, setCategories] = useState([{ id: 'All', name: 'All' }]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  if (loading) return <div style={styles.loader}>INITIALIZING V33 SYSTEMS...</div>;
+  // --- RESPONSIVE & SEO ---
+  useEffect(() => {
+    document.title = "V33 TOOLS | Industrial Machinery";
+    window.scrollTo(0, 0);
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
+
+  // Load Categories
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const data = await getAllCategories();
+        if (data && Array.isArray(data)) {
+          setCategories([{ id: 'All', name: 'All' }, ...data]);
+        }
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  // Filter Logic
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    let list = [...products];
+
+    if (selectedCategory !== 'All') {
+      const targetCat = categories.find(c => c.name === selectedCategory);
+      if (targetCat) list = list.filter(p => p.categoryId === targetCat.id);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(term) ||
+        p.id.toString().includes(term)
+      );
+    }
+    return list;
+  }, [products, selectedCategory, searchTerm, categories]);
+
+  const displayedProducts = filteredProducts.slice(0, visibleCount);
+
+  if (productsLoading) return <div style={styles.loader}>INITIALIZING V33 SYSTEMS...</div>;
+  if (error) return <div style={styles.loader}>SYSTEM CONNECTION ERROR</div>;
 
   return (
     <div style={styles.page}>
-      {/* HERO SECTION WITH BACKGROUND */}
-      <section style={styles.hero}>
-        <div style={styles.heroOverlay}></div> {/* Darkens the image for text clarity */}
+      
+      {/* HERO SECTION - REFINED SCALE */}
+      <section style={{ 
+        ...styles.hero, 
+        height: isMobile ? '40vh' : '50vh',
+      }}>
+        <div style={styles.heroOverlay}></div>
         <div style={styles.heroContent}>
           <div style={styles.badgeContainer}>
-            <span style={styles.topLabel}>EST. 2026</span>
+            <span style={styles.topLabel}>V33 FLEET OPERATIONS</span>
           </div>
-          <h1 style={styles.mainHeading}>
+          <h1 style={{ 
+            ...styles.mainHeading, 
+            fontSize: isMobile ? '1.8rem' : '2.8rem' 
+          }}>
             ENGINEERED <span style={{ color: '#6EC1E4' }}>DOMINANCE.</span>
           </h1>
-          <p style={styles.subtext}>
-            The industry standard for high-pressure brick production machinery.
+          <p style={{ ...styles.subtext, fontSize: isMobile ? '0.85rem' : '1rem' }}>
+            The gold standard for high-pressure industrial machinery and global logistics.
           </p>
         </div>
       </section>
 
       <main style={styles.shopContainer}>
-        {/* ... (Rest of the shop container code remains the same) */}
-        <div style={styles.filterBar}>
-          <div style={styles.filterGroup}>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setFilter(cat)}
-                style={{
-                  ...styles.filterBtn,
-                  color: filter === cat ? '#000' : '#888',
-                  borderBottom: filter === cat ? '2px solid #6EC1E4' : '2px solid transparent'
-                }}
-              >
-                {cat}
-              </button>
-            ))}
+        
+        {/* SLIDABLE NAVIGATION BAR */}
+        <div style={{ 
+          ...styles.filterBar, 
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '20px' : '0'
+        }}>
+          <div style={styles.filterWrapper}>
+            <div style={styles.filterGroup} className="no-scrollbar">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => { setSelectedCategory(cat.name); setVisibleCount(12); }}
+                  style={{
+                    ...styles.filterBtn,
+                    color: selectedCategory === cat.name ? '#111' : '#AAA',
+                    borderBottom: selectedCategory === cat.name ? '2px solid #6EC1E4' : '2px solid transparent'
+                  }}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={styles.statusIndicator}>
-            <span style={styles.pulse}></span> {filteredProducts.length} UNITS ONLINE
+
+          <div style={{ ...styles.searchWrapper, width: isMobile ? '100%' : '260px' }}>
+            <input 
+              type="text" 
+              placeholder="SEARCH CATALOG..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={styles.searchInput}
+            />
           </div>
         </div>
 
+        {/* PRODUCT GRID - "ZOOMED OUT" CARDS */}
         <div style={styles.productGrid}>
-          {filteredProducts.map((item) => (
-            <div key={item.id} style={styles.productCard}>
+          {displayedProducts.map((item) => (
+            <div key={item.id} style={styles.productCard} onClick={() => navigate(`/product/${item.id}`)}>
               <div style={styles.imageBox}>
                 <div style={{
                   ...styles.stockBadge,
-                  backgroundColor: item.stock === 'Limited' ? '#FF4444' : '#6EC1E4',
-                  color: '#FFF'
+                  backgroundColor: item.stockQuantity <= 0 ? '#FF4444' : '#6EC1E4',
                 }}>
-                  {item.stock}
+                  {item.stockQuantity > 0 ? 'IN STOCK' : 'OUT OF STOCK'}
                 </div>
                 <img
-                  src={item.img}
+                  src={item.image_url || 'https://via.placeholder.com/300'}
                   alt={item.name}
                   onError={handleImageError}
                   style={styles.productImg}
@@ -85,101 +154,113 @@ const Home = () => {
 
               <div style={styles.infoBox}>
                 <div style={styles.cardHeader}>
-                  <span style={styles.category}>{item.category}</span>
+                  <span style={styles.category}>SERIES V33</span>
                   <span style={styles.idTag}>#{item.id}</span>
                 </div>
                 <h3 style={styles.name}>{item.name}</h3>
-                <div style={styles.specItem}>⚙️ {item.specs}</div>
+                <p style={styles.specItem}>{item.description.slice(0, 65)}...</p>
                 
                 <div style={styles.priceRow}>
-                  <div style={styles.priceWrap}>
-                    <span style={styles.dollar}>R</span>
-                    <span style={styles.amount}>{item.price.toLocaleString()}</span>
-                  </div>
-                  <button onClick={() => addToCart(item)} style={styles.cartButton}>
-                    BUY NOW
+                  <span style={styles.amount}>{formatPrice(item.price)}</span>
+                  <button 
+                    disabled={item.stockQuantity <= 0}
+                    onClick={(e) => { e.stopPropagation(); addToCart(item); }} 
+                    style={{ ...styles.cartButton, opacity: item.stockQuantity <= 0 ? 0.3 : 1 }}
+                  >
+                    ADD TO CART
                   </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* LOAD MORE */}
+        {visibleCount < filteredProducts.length && (
+          <div style={styles.seeMoreContainer}>
+            <button onClick={() => setVisibleCount(prev => prev + 12)} style={styles.seeMoreBtn}>
+              LOAD MORE UNITS
+            </button>
+          </div>
+        )}
       </main>
+
+      {/* GLOBAL CSS FOR SCROLLBAR HIDING */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 };
 
 const styles = {
-  page: { 
-    backgroundColor: '#F9F9F9', 
-    color: '#1A1A1A', 
-    minHeight: '100vh', 
-    fontFamily: 'sans-serif',
-    paddingTop: '90px' 
-  },
-  loader: { 
-    height: '100vh',
-     display: 'flex', 
-     alignItems: 'center', 
-     justifyContent: 'center',
-      backgroundColor: '#F9F9F9', 
-      color: '#6EC1E4', 
-      letterSpacing: '2px'
-     },
+  page: { backgroundColor: '#FDFDFD', color: '#111', minHeight: '100vh', paddingTop: '80px' },
+  loader: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6EC1E4', fontSize: '0.7rem', letterSpacing: '3px' },
   
-  // HERO STYLES UPDATED
-  hero: { 
-    height: '55vh', 
+  // HERO - Scaled down for "zoomed out" feel
+  hero: { display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', backgroundImage: `url(${warehouseBg})`, backgroundSize: 'cover', backgroundPosition: 'center', textAlign: 'center', overflow: 'hidden' },
+  heroOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)' },
+  heroContent: { maxWidth: '700px', position: 'relative', zIndex: 2, padding: '0 20px' },
+  badgeContainer: { marginBottom: '10px' },
+  topLabel: { color: '#6EC1E4', fontSize: '0.65rem', fontWeight: '800', letterSpacing: '4px' },
+  mainHeading: { margin: '0 0 10px 0', fontWeight: '900', color: '#FFF' },
+  subtext: { color: '#BBB', fontWeight: '400', lineHeight: '1.6', maxWidth: '500px', margin: '0 auto' },
+
+  // SHOP CONTAINER
+  shopContainer: { maxWidth: '1400px', margin: '0 auto', padding: '40px 5%' },
+  
+  // FILTER BAR (SLIDABLE)
+  filterBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '35px', borderBottom: '1px solid #F0F0F0' },
+  filterWrapper: { flex: 1, overflow: 'hidden' },
+  filterGroup: { 
     display: 'flex', 
-    alignItems: 'center', 
-    padding: '0 8%', 
-    position: 'relative',
-    backgroundImage: `url(${warehouseBg})`,    
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    overflow: 'hidden'
+    gap: '30px', 
+    overflowX: 'auto', 
+    whiteSpace: 'nowrap', 
+    paddingBottom: '12px',
+    WebkitOverflowScrolling: 'touch' 
   },
-  heroOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    backdropFilter: 'blur(4px)', 
-    zIndex: 1
+  filterBtn: { 
+    background: 'none', 
+    border: 'none', 
+    padding: '8px 0', 
+    cursor: 'pointer', 
+    fontWeight: '800', 
+    textTransform: 'uppercase', 
+    fontSize: '0.65rem', 
+    letterSpacing: '1px',
+    flexShrink: 0 
   },
-  heroContent: { 
-    maxWidth: '800px', 
-    position: 'relative', 
-    zIndex: 2 
-  },
-  badgeContainer: { borderLeft: '3px solid #6EC1E4', paddingLeft: '15px', marginBottom: '10px' },
-  topLabel: { color: '#6EC1E4', fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '3px' },
-  mainHeading: { fontSize: '3.5rem', margin: '0 0 10px 0', fontWeight: '900', color: '#FFF' }, // Text must be white here
-  subtext: { fontSize: '1.1rem', color: '#CCC', maxWidth: '600px' },
   
-  shopContainer: { padding: '40px 8%' },
-  filterBar: { display: 'flex', justifyContent: 'space-between', marginBottom: '40px', borderBottom: '1px solid #EEE' },
-  filterGroup: { display: 'flex', gap: '20px' },
-  filterBtn: { background: 'none', border: 'none', padding: '10px 0', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px' },
-  statusIndicator: { color: '#6EC1E4', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  pulse: { width: '8px', height: '8px', backgroundColor: '#6EC1E4', borderRadius: '50%' },
-  productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px' },
-  productCard: { backgroundColor: '#FFF', border: '1px solid #EEE' },
-  imageBox: { height: '220px', position: 'relative', overflow: 'hidden', backgroundColor: '#F2F2F2' },
+  // SEARCH
+  searchWrapper: { position: 'relative' },
+  searchInput: { width: '100%', padding: '10px 0', border: 'none', borderBottom: '2px solid #111', backgroundColor: 'transparent', fontSize: '0.7rem', fontWeight: '900', outline: 'none' },
+
+  // GRID & CARDS - Compact "Zoomed Out" Style
+  productGrid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', 
+    gap: '30px' 
+  },
+  productCard: { backgroundColor: '#FFF', border: '1px solid #EEE', cursor: 'pointer', display: 'flex', flexDirection: 'column', transition: '0.2s' },
+  imageBox: { height: '230px', position: 'relative', overflow: 'hidden', backgroundColor: '#F9F9F9' },
   productImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  stockBadge: { position: 'absolute', top: '10px', right: '10px', fontSize: '0.6rem', padding: '4px 8px', zIndex: 2, fontWeight: 'bold' },
-  infoBox: { padding: '20px' },
+  stockBadge: { position: 'absolute', top: '10px', right: '10px', fontSize: '0.55rem', padding: '4px 8px', color: '#FFF', fontWeight: '800', letterSpacing: '1px' },
+  
+  infoBox: { padding: '18px', flex: 1, display: 'flex', flexDirection: 'column' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' },
-  category: { color: '#6EC1E4', fontSize: '0.7rem', fontWeight: 'bold' },
-  idTag: { color: '#AAA', fontSize: '0.7rem' },
-  name: { fontSize: '1.2rem', margin: '0 0 10px 0', color: '#000' },
-  specItem: { fontSize: '0.75rem', color: '#555', background: '#F5F5F5', padding: '8px 12px', borderLeft: '2px solid #EEE' },
-  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' },
-  amount: { fontSize: '1.4rem', fontWeight: 'bold', color: '#000' },
-  dollar: { color: '#6EC1E4', marginRight: '5px', fontWeight: 'bold' },
-  cartButton: { backgroundColor: '#000', color: '#FFF', border: 'none', padding: '10px 20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem' }
+  category: { color: '#6EC1E4', fontSize: '0.6rem', fontWeight: '800' },
+  idTag: { color: '#CCC', fontSize: '0.6rem' },
+  name: { fontSize: '0.95rem', margin: '0 0 8px 0', fontWeight: '800', color: '#111', minHeight: '2.5rem', lineHeight: '1.3' },
+  specItem: { fontSize: '0.7rem', color: '#666', marginBottom: '15px', lineHeight: '1.5' },
+  
+  priceRow: { marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '15px', borderTop: '1px solid #F9F9F9' },
+  amount: { fontSize: '1.1rem', fontWeight: '900', color: '#111' },
+  cartButton: { backgroundColor: '#111', color: '#FFF', border: 'none', padding: '10px 18px', fontWeight: '800', cursor: 'pointer', fontSize: '0.65rem' },
+
+  seeMoreContainer: { display: 'flex', justifyContent: 'center', marginTop: '50px' },
+  seeMoreBtn: { backgroundColor: 'transparent', border: '1px solid #111', padding: '12px 30px', fontWeight: '800', cursor: 'pointer', fontSize: '0.65rem', letterSpacing: '1px' }
 };
 
 export default Home;

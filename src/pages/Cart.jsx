@@ -1,97 +1,187 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, cartTotal, loading } = useCart();
+  const { formatPrice } = useCurrency();
+  const navigate = useNavigate();
+  const [syncingId, setSyncingId] = useState(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  const subtotal = cart.reduce((acc, item) => acc + item.price * (item.quantity || 1), 0);
-  const vat = subtotal * 0.15;
-  const total = subtotal + vat;
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  if (cart.length === 0) {
+  const isMobile = windowWidth <= 968;
+  const safeItems = Array.isArray(cartItems) ? cartItems : [];
+  
+  const vat = cartTotal * 0.15;
+  const shippingThreshold = 50000; 
+  const shippingCost = cartTotal > shippingThreshold ? 0 : 2500;
+  const grandTotal = cartTotal + vat + shippingCost;
+  const progress = Math.min((cartTotal / shippingThreshold) * 100, 100);
+
+  if (loading && safeItems.length === 0) {
+    return <div style={styles.loadingScreen}>LOADING EQUIPMENT LIST...</div>;
+  }
+
+  if (safeItems.length === 0) {
     return (
       <div style={styles.emptyPage}>
-        <h2 style={styles.emptyTitle}>YOUR CART IS EMPTY</h2>
-        <Link to="/" style={styles.shopLink}>RETURN TO SHOP</Link>
+        <h2 style={styles.emptyTitle}>NO ITEMS SELECTED</h2>
+        <p style={{color: '#888', fontSize: '0.7rem', marginBottom: '20px'}}>Your equipment list is currently empty.</p>
+        <Link to="/" style={styles.shopLink}>BROWSE CATALOG</Link>
       </div>
     );
   }
 
+  const handleAction = async (id, actionFn, ...args) => {
+    setSyncingId(id);
+    await actionFn(id, ...args);
+    setSyncingId(null);
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* HEADER */}
         <header style={styles.header}>
-          <h1 style={styles.title}>SHOPPING CART <span style={styles.count}>({cart.length})</span></h1>
+          <h1 style={styles.title}>
+            CART <span style={styles.count}>[{safeItems.length} ITEM(S)]</span>
+            {syncingId && <span style={styles.syncIndicator}>// UPDATING...</span>}
+          </h1>
           <div style={styles.headerLine}></div>
+          
+          <div style={styles.progressWrapper}>
+            <div style={styles.progressText}>
+              {cartTotal > shippingThreshold 
+                ? "QUALIFIED FOR FREE SHIPPING" 
+                : `ADD ${formatPrice(shippingThreshold - cartTotal)} MORE FOR FREE SHIPPING`}
+            </div>
+            <div style={styles.progressBarBg}>
+              <div style={{...styles.progressBarFill, width: `${progress}%`}}></div>
+            </div>
+          </div>
         </header>
 
-        <div style={styles.mainContent}>
-          {/* ITEMS LIST */}
+        <div style={{
+          ...styles.mainContent,
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 400px',
+          gap: isMobile ? '40px' : '70px'
+        }}>
+          
           <div style={styles.itemSection}>
-            <div style={styles.tableLabels}>
-              <span style={{flex: 2}}>ITEM</span>
-              <span style={{flex: 1, textAlign: 'center'}}>QUANTITY</span>
-              <span style={{flex: 1, textAlign: 'right'}}>TOTAL</span>
-            </div>
-
-            {cart.map((item) => (
-              <div key={item.id} style={styles.cartItem}>
+            {safeItems.map((item) => (
+              <div key={item.product.id} style={{
+                ...styles.cartItem,
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center',
+                opacity: syncingId === item.product.id ? 0.5 : 1,
+              }}>
                 <div style={styles.itemInfo}>
-                  <img src={item.img} alt={item.name} style={styles.itemImg} />
+                  <img 
+                    src={item.product.image_url || 'https://via.placeholder.com/300'} 
+                    alt={item.product.name} 
+                    style={styles.itemImg} 
+                  />
                   <div style={styles.itemDetails}>
-                    <span style={styles.category}>{item.category}</span>
-                    <h3 style={styles.itemName}>{item.name}</h3>
-                    <span style={styles.itemRef}>ID: {item.id}</span>
-                    <button onClick={() => removeFromCart(item.id)} style={styles.removeBtn}>Remove</button>
+                    <span style={styles.category}>{item.product.brand || 'V33 SYSTEMS'}</span>
+                    <h3 style={styles.itemName}>{item.product.name}</h3>
+                    <span style={styles.unitPrice}>{formatPrice(item.product.price)} / unit</span>
+                    {!isMobile && (
+                      <button 
+                        onClick={() => handleAction(item.product.id, removeFromCart)} 
+                        style={styles.removeBtn}
+                      >REMOVE ITEM</button>
+                    )}
                   </div>
                 </div>
 
-                <div style={styles.qtyContainer}>
+                <div style={{
+                  ...styles.actionsRow,
+                  width: isMobile ? '100%' : 'auto',
+                  marginTop: isMobile ? '20px' : '0'
+                }}>
                   <div style={styles.qtyStepper}>
-                    <button onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)} style={styles.stepperBtn}>—</button>
-                    <span style={styles.qtyNum}>{item.quantity || 1}</span>
-                    <button onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)} style={styles.stepperBtn}>+</button>
+                    <button 
+                      onClick={() => handleAction(item.product.id, updateQuantity, -1)} 
+                      style={styles.stepperBtn}
+                      disabled={item.quantity <= 1 || syncingId === item.product.id}
+                    >—</button>
+                    <span style={styles.qtyNum}>{item.quantity}</span>
+                    <button 
+                      onClick={() => handleAction(item.product.id, updateQuantity, 1)} 
+                      style={styles.stepperBtn}
+                      disabled={syncingId === item.product.id}
+                    >+</button>
                   </div>
-                </div>
+                  
+                  <div style={styles.itemPrice}>
+                    {formatPrice(item.product.price * item.quantity)}
+                  </div>
 
-                <div style={styles.itemPrice}>
-                  R { (item.price * (item.quantity || 1)).toLocaleString() }
+                  {isMobile && (
+                    <button 
+                      onClick={() => handleAction(item.product.id, removeFromCart)} 
+                      style={styles.removeBtnMobile}
+                    >×</button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* SUMMARY SIDEBAR */}
           <aside style={styles.sidebar}>
             <div style={styles.summaryCard}>
-              <h2 style={styles.summaryTitle}>SUMMARY</h2>
+              <h2 style={styles.summaryTitle}>ORDER SUMMARY</h2>
               
               <div style={styles.summaryRow}>
                 <span>SUBTOTAL</span>
-                <span>R {subtotal.toLocaleString()}</span>
+                <span>{formatPrice(cartTotal)}</span>
               </div>
-              
               <div style={styles.summaryRow}>
                 <span>VAT (15%)</span>
-                <span>R {vat.toLocaleString()}</span>
+                <span>{formatPrice(vat)}</span>
+              </div>
+              <div style={styles.summaryRow}>
+                <span>SHIPPING</span>
+                <span style={{color: shippingCost === 0 ? '#2ECC71' : '#000'}}>
+                  {shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}
+                </span>
               </div>
 
               <div style={styles.summaryDivider}></div>
-
+              
               <div style={styles.totalRow}>
                 <span>TOTAL</span>
-                <span>R {total.toLocaleString()}</span>
+                <span>{formatPrice(grandTotal)}</span>
               </div>
 
-              <button style={styles.checkoutBtn}>CHECKOUT</button>
+              <button 
+                onClick={() => navigate('/checkout')} 
+                style={styles.checkoutBtn}
+              >
+                PROCEED TO CHECKOUT
+              </button>
               
-              <div style={styles.paymentIcons}>
-                <span>SECURE CHECKOUT</span>
+              <div style={styles.trustBox}>
+                <p style={styles.trustText}>SECURE PAYMENT METHODS</p>
+                <div style={styles.paymentGrid}>
+                  {/* Updated Icons with color sources */}
+                  <img src="https://cdn-icons-png.flaticon.com/512/349/349221.png" alt="Visa" style={styles.paymentIcon}/>
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" style={styles.paymentIcon}/>
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="Paypal" style={styles.paymentIcon}/>
+                  <div style={styles.eftBadge}>EFT</div>
+                </div>
+                <div style={styles.secureBadge}>
+                    🔒 SECURE SSL AUTHORIZATION
+                </div>
               </div>
             </div>
-            <Link to="/" style={styles.continueLink}>Continue Shopping</Link>
+            <Link to="/" style={styles.continueLink}>← Back to Equipment Catalog</Link>
           </aside>
         </div>
       </div>
@@ -100,218 +190,56 @@ const Cart = () => {
 };
 
 const styles = {
-  page: {
-    backgroundColor: '#FFFFFF',
-    color: '#000',
-    minHeight: '100vh',
-    paddingTop: '120px',
-    paddingBottom: '100px',
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
-  },
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '0 5%'
-  },
-  header: {
-    marginBottom: '60px'
-  },
-  title: {
-    fontSize: '0.8rem',
-    fontWeight: '800',
-    letterSpacing: '3px',
-    marginBottom: '15px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px'
-  },
-  count: {
-    color: '#6EC1E4',
-    fontWeight: '400'
-  },
-  headerLine: {
-    height: '1px',
-    backgroundColor: '#000',
-    width: '100%'
-  },
-  mainContent: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 340px',
-    gap: '80px',
-    alignItems: 'start'
-  },
-  tableLabels: {
-    display: 'flex',
-    paddingBottom: '15px',
-    borderBottom: '1px solid #EEE',
-    fontSize: '0.65rem',
-    fontWeight: '700',
-    letterSpacing: '1px',
-    color: '#999'
-  },
-  cartItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '30px 0',
-    borderBottom: '1px solid #F0F0F0'
-  },
-  itemInfo: {
-    flex: 2,
-    display: 'flex',
-    gap: '25px',
-    alignItems: 'center'
-  },
-  itemImg: {
-    width: '100px',
-    height: '80px',
-    objectFit: 'cover',
-    backgroundColor: '#F9F9F9',
-    borderRadius: '2px'
-  },
-  itemDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-  category: {
-    fontSize: '0.6rem',
-    fontWeight: '700',
-    color: '#6EC1E4',
-    textTransform: 'uppercase'
-  },
-  itemName: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    margin: 0
-  },
-  itemRef: {
-    fontSize: '0.65rem',
-    color: '#AAA'
-  },
-  removeBtn: {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    marginTop: '10px',
-    fontSize: '0.65rem',
-    color: '#000',
-    textDecoration: 'underline',
-    cursor: 'pointer',
-    width: 'fit-content'
-  },
-  qtyContainer: {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'center'
-  },
-  qtyStepper: {
-    display: 'flex',
-    alignItems: 'center',
-    border: '1px solid #E0E0E0',
-    borderRadius: '20px',
-    padding: '4px 12px'
-  },
-  stepperBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '0 8px',
-    fontSize: '0.8rem'
-  },
-  qtyNum: {
-    fontSize: '0.8rem',
-    fontWeight: '600',
-    minWidth: '20px',
-    textAlign: 'center'
-  },
-  itemPrice: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: '0.9rem',
-    fontWeight: '700'
-  },
-  sidebar: {
-    position: 'sticky',
-    top: '140px'
-  },
-  summaryCard: {
-    backgroundColor: '#F9F9F9',
-    padding: '30px',
-    borderRadius: '4px'
-  },
-  summaryTitle: {
-    fontSize: '0.75rem',
-    fontWeight: '800',
-    letterSpacing: '2px',
-    marginBottom: '25px'
-  },
-  summaryRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.75rem',
-    marginBottom: '12px',
-    color: '#555'
-  },
-  summaryDivider: {
-    height: '1px',
-    backgroundColor: '#DDD',
-    margin: '20px 0'
-  },
-  totalRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '1rem',
-    fontWeight: '800',
-    marginBottom: '30px'
-  },
-  checkoutBtn: {
-    width: '100%',
-    backgroundColor: '#000',
-    color: '#FFF',
-    border: 'none',
-    padding: '18px',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    letterSpacing: '1px',
-    cursor: 'pointer',
-    transition: 'background 0.2s ease'
-  },
-  continueLink: {
-    display: 'block',
-    textAlign: 'center',
-    marginTop: '20px',
-    fontSize: '0.7rem',
-    color: '#888',
-    textDecoration: 'none'
-  },
-  paymentIcons: {
-    marginTop: '20px',
-    textAlign: 'center',
-    fontSize: '0.55rem',
-    color: '#BBB',
-    letterSpacing: '1px'
-  },
-  emptyPage: {
-    height: '80vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px'
-  },
-  emptyTitle: {
-    fontSize: '0.9rem',
-    fontWeight: '800',
-    letterSpacing: '3px'
-  },
-  shopLink: {
-    fontSize: '0.7rem',
-    fontWeight: '700',
-    color: '#FFF',
-    backgroundColor: '#000',
-    padding: '12px 25px',
-    textDecoration: 'none'
-  }
+  page: { backgroundColor: '#FFFFFF', color: '#000', minHeight: '100vh', paddingTop: '120px', paddingBottom: '100px', fontFamily: '"Inter", sans-serif' },
+  container: { maxWidth: '1400px', margin: '0 auto', padding: '0 4%' },
+  header: { marginBottom: '50px' },
+  title: { fontSize: '0.9rem', fontWeight: '900', letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '15px' },
+  syncIndicator: { fontSize: '0.55rem', color: '#6EC1E4', fontWeight: '400' },
+  count: { color: '#AAA', fontWeight: '400' },
+  headerLine: { height: '1px', backgroundColor: '#F0F0F0', width: '100%', marginTop: '15px' },
+  progressWrapper: { marginTop: '25px' },
+  progressText: { fontSize: '0.6rem', fontWeight: '800', marginBottom: '10px', letterSpacing: '1px' },
+  progressBarBg: { height: '2px', backgroundColor: '#F0F0F0', width: '100%' },
+  progressBarFill: { height: '100%', backgroundColor: '#6EC1E4', transition: 'width 0.5s ease' },
+  
+  mainContent: { display: 'grid', alignItems: 'start' },
+  itemSection: { display: 'flex', flexDirection: 'column' },
+  cartItem: { display: 'flex', padding: '35px 0', borderBottom: '1px solid #F6F6F6', position: 'relative' },
+  itemInfo: { flex: 2, display: 'flex', gap: '30px', alignItems: 'center' },
+  itemImg: { width: '120px', height: '90px', objectFit: 'cover', border: '1px solid #F0F0F0' },
+  itemDetails: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  category: { fontSize: '0.55rem', fontWeight: '900', color: '#AAA', letterSpacing: '1px' },
+  itemName: { fontSize: '0.9rem', fontWeight: '700', margin: 0, textTransform: 'uppercase' },
+  unitPrice: { fontSize: '0.7rem', color: '#999' },
+  removeBtn: { background: 'none', border: 'none', padding: 0, marginTop: '15px', fontSize: '0.55rem', fontWeight: '800', cursor: 'pointer', color: '#AAA', textAlign: 'left', letterSpacing: '1px', textDecoration: 'underline' },
+  
+  actionsRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1.2 },
+  qtyStepper: { display: 'flex', alignItems: 'center', border: '1px solid #EEE', padding: '6px 15px' },
+  stepperBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '0 10px', fontSize: '0.9rem', fontWeight: 'bold' },
+  qtyNum: { fontSize: '0.8rem', fontWeight: '800', minWidth: '30px', textAlign: 'center' },
+  itemPrice: { fontSize: '0.95rem', fontWeight: '900' },
+  removeBtnMobile: { background: '#F5F5F5', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' },
+  
+  sidebar: { position: 'sticky', top: '140px' },
+  summaryCard: { backgroundColor: '#FAFAFA', padding: '40px', border: '1px solid #F0F0F0' },
+  summaryTitle: { fontSize: '0.65rem', fontWeight: '900', letterSpacing: '2px', marginBottom: '30px', color: '#000' },
+  summaryRow: { display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '15px', fontWeight: '600', color: '#666' },
+  summaryDivider: { height: '1px', backgroundColor: '#EEE', margin: '25px 0' },
+  totalRow: { display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: '900', marginBottom: '35px' },
+  checkoutBtn: { width: '100%', backgroundColor: '#000', color: '#FFF', border: 'none', padding: '22px', fontSize: '0.7rem', fontWeight: '900', cursor: 'pointer', letterSpacing: '3px' },
+  
+  trustBox: { marginTop: '35px', textAlign: 'center', borderTop: '1px solid #EEE', paddingTop: '30px' },
+  trustText: { fontSize: '0.5rem', fontWeight: '900', color: '#BBB', marginBottom: '15px', letterSpacing: '1.5px' },
+  paymentGrid: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }, // Removed opacity
+  paymentIcon: { height: '25px', width: 'auto' }, // Removed grayscale filter
+  eftBadge: { fontSize: '0.55rem', fontWeight: '900', border: '1px solid #333', padding: '2px 6px', color: '#000' },
+  secureBadge: { marginTop: '20px', fontSize: '0.5rem', fontWeight: '800', color: '#AAA', letterSpacing: '1px' },
+  continueLink: { display: 'block', textAlign: 'center', marginTop: '30px', fontSize: '0.6rem', fontWeight: '800', color: '#6EC1E4', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '1px' },
+  
+  emptyPage: { height: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontSize: '1rem', fontWeight: '900', letterSpacing: '3px', marginBottom: '10px' },
+  shopLink: { fontSize: '0.7rem', fontWeight: '800', color: '#FFF', backgroundColor: '#000', padding: '15px 35px', textDecoration: 'none' },
+  loadingScreen: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '3px', fontWeight: '900' }
 };
 
 export default Cart;
