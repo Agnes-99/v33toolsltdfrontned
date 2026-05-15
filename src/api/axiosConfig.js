@@ -5,7 +5,8 @@ import axios from 'axios';
  * This instance handles all communication with the Spring Boot Backend.
  */
 const api = axios.create({
-  baseURL: 'http://localhost:8080/v33tools',
+  // ✅ Dynamically checks for Vercel's production variable, otherwise falls back to local
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/v33tools',
   headers: {
     'Content-Type': 'application/json',
   },
