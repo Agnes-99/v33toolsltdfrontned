@@ -40,3 +40,31 @@
 .read-the-docs {
   color: #888;
 }
+
+/* ==========================================================================
+   GLOBAL MOBILE NAVIGATION & SEAMLESS VIEWPORT LOCKS
+   ========================================================================== */
+
+/* Prevents phones from zooming in automatically when typing on inputs */
+@media (max-width: 768px) {
+  input, 
+  select, 
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Handles smooth side-sliding for items like categories on mobile screens */
+.no-scrollbar {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;  /* For Internet Explorer and Edge */
+  scrollbar-width: none;     /* For Firefox */
+}
+
+/* Hides the default bulky browser scrollbar lines during side-sliding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;             /* For Chrome, Safari and Opera */
+}

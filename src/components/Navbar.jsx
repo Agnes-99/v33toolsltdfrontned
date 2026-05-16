@@ -124,7 +124,7 @@ const Navbar = () => {
                 </div>
               ) : (
                 <div style={styles.authContainer}>
-                  <Link to="/login" style={styles.loginLink}>LOGIN</Link>
+                  <Link to="/login" style={styles.loginLink}>SIGN IN</Link>
                   <Link to="/register" style={styles.registerBtn}>JOIN FLEET</Link>
                 </div>
               )}
