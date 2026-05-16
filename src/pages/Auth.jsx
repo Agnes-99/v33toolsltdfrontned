@@ -33,6 +33,9 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Safely check if the user was just redirected here from a successful registration attempt
+  const isAccountCreated = location.state?.accountCreated;
+
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -53,7 +56,7 @@ const Auth = () => {
     }
     if (name === 'password') {
       const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
-      if (!regex.test(value)) error = "8+ chars, 1 letter, 1 number";
+      if (!regex.test(value)) error = "Requires 8+ characters, letters and numbers only (no symbols)";
     }
     if (!isLogin && (name === 'firstName' || name === 'lastName')) {
       if (!value.trim()) error = "Required";
@@ -101,8 +104,9 @@ const Auth = () => {
           phoneNumber: `${selectedCountry}${formData.phoneNumber}`
         };
         await register(finalData);
-        setIsLogin(true);
-        navigate('/login');
+        
+        // Pass temporary state flags during the programmatic switch over to the login pathing
+        navigate('/login', { state: { accountCreated: true } });
       }
     } catch (err) {
       setServerError("Account check failed. Verify your details and try again.");
@@ -118,7 +122,7 @@ const Auth = () => {
       <div style={{
         ...styles.container,
         gridTemplateColumns: isMobile ? '1fr' : '1fr 1.35fr',
-        maxWidth: isMobile ? '400px' : '980px', 
+        maxWidth: isMobile ? '430px' : '1020px', // Zoomed in slightly to feel more balanced and present
       }}>
         
         {/* LEFT PANEL */}
@@ -151,7 +155,7 @@ const Auth = () => {
         )}
 
         {/* RIGHT PANEL */}
-        <div style={{...styles.interfaceSide, padding: isMobile ? '40px 25px' : '55px 70px'}}>
+        <div style={{...styles.interfaceSide, padding: isMobile ? '45px 30px' : '60px 80px'}}>
           <div style={styles.tabHeader}>
             <button onClick={() => navigate('/login')} 
               style={{...styles.tab, color: isLogin ? '#FFF' : '#444'}}>
@@ -164,6 +168,14 @@ const Auth = () => {
           </div>
 
           <form style={styles.form} onSubmit={handleSubmit} noValidate>
+            
+            {/* DYNAMIC SUCCESS BANNER */}
+            {isLogin && isAccountCreated && !serverError && (
+              <div style={styles.successBanner}>
+                Registration successful. Please use your registered email and password below to log in.
+              </div>
+            )}
+
             {serverError && <div style={styles.serverError}>{serverError}</div>}
 
             <div style={{...styles.inputGrid, gridTemplateColumns: (isMobile || isLogin) ? '1fr' : '1fr 1fr'}}>
@@ -219,7 +231,7 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* INLINE MAINTENANCE MODAL POPUP LAYER */}
+      {/* INLINE MAINTENANCE MODAL */}
       {showMaintenanceModal && (
         <div style={styles.modalOverlay} onClick={() => setShowMaintenanceModal(false)}>
           <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -264,51 +276,47 @@ const styles = {
     flexDirection: 'column', 
     justifyContent: 'space-between' 
   },
-  statusBadge: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.7rem', color: '#444', fontWeight: 'bold', letterSpacing: '1.5px' },
+  statusBadge: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.75rem', color: '#444', fontWeight: 'bold', letterSpacing: '1.5px' },
   pulseDot: { width: '6px', height: '6px', backgroundColor: '#6EC1E4', borderRadius: '50%', boxShadow: '0 0 8px #6EC1E4' },
-  logoText: { fontSize: '2.5rem', fontWeight: '900', color: '#FFF', margin: 0 },
+  logoText: { fontSize: '2.6rem', fontWeight: '900', color: '#FFF', margin: 0 },
   accentLine: { width: '35px', height: '2px', backgroundColor: '#6EC1E4', margin: '18px 0' },
-  description: { fontSize: '0.95rem', color: '#666', lineHeight: '1.6', maxWidth: '250px' },
+  description: { fontSize: '1rem', color: '#666', lineHeight: '1.6', maxWidth: '250px' },
   footerReadout: { display: 'flex', gap: '30px', borderTop: '1px solid #141414', paddingTop: '25px' },
   readoutItem: { display: 'flex', flexDirection: 'column', gap: '3px' },
-  readoutLabel: { fontSize: '0.6rem', color: '#2b2b2b', fontWeight: '900' },
-  readoutValue: { fontSize: '0.75rem', color: '#6EC1E4', fontWeight: '600' },
+  readoutLabel: { fontSize: '0.65rem', color: '#2b2b2b', fontWeight: '900' },
+  readoutValue: { fontSize: '0.8rem', color: '#6EC1E4', fontWeight: '600' },
   interfaceSide: { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
   tabHeader: { display: 'flex', gap: '35px', marginBottom: '35px' },
-  tab: { background: 'none', border: 'none', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', padding: '0 0 8px 0', position: 'relative', letterSpacing: '0.5px' },
+  tab: { background: 'none', border: 'none', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', padding: '0 0 8px 0', position: 'relative', letterSpacing: '0.5px' },
   activeLine: { position: 'absolute', bottom: 0, left: 0, width: '100%', height: '2px', backgroundColor: '#6EC1E4' },
   form: { display: 'flex', flexDirection: 'column', gap: '22px' },
-  serverError: { padding: '12px', borderLeft: '2px solid #FF4D4D', color: '#FF4D4D', fontSize: '0.8rem', backgroundColor: 'rgba(255, 77, 77, 0.03)' },
+  serverError: { padding: '14px', borderLeft: '3px solid #FF4D4D', color: '#FF4D4D', fontSize: '0.85rem', backgroundColor: 'rgba(255, 77, 77, 0.03)' },
+  successBanner: { padding: '14px', borderLeft: '3px solid #6EC1E4', color: '#6EC1E4', fontSize: '0.85rem', backgroundColor: 'rgba(110, 193, 228, 0.03)', lineHeight: '1.4' },
   inputGrid: { display: 'grid', gap: '18px' },
   inputWrapper: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  label: { fontSize: '0.75rem', fontWeight: 'bold', color: '#555', display: 'flex', justifyContent: 'space-between', letterSpacing: '0.3px' },
-  errorSpan: { color: '#FF4D4D', fontSize: '0.65rem', fontWeight: 'normal' },
+  label: { fontSize: '0.8rem', fontWeight: 'bold', color: '#555', display: 'flex', justifyContent: 'space-between', letterSpacing: '0.3px' },
+  errorSpan: { color: '#FF4D4D', fontSize: '0.7rem', fontWeight: 'normal' },
   input: { 
     backgroundColor: '#000', 
     border: '1px solid #222', 
     color: '#FFF', 
-    padding: '15px', 
-    fontSize: '0.95rem', 
+    padding: '16px', 
+    fontSize: '1rem', 
     outline: 'none',
     transition: 'border-color 0.2s ease',
     borderRadius: '1px'
   },
   phoneGroup: { display: 'flex', gap: '8px' },
-  countryDropdown: { backgroundColor: '#000', border: '1px solid #222', color: '#6EC1E4', padding: '0 10px', fontSize: '0.8rem', cursor: 'pointer', borderRadius: '1px' },
-  showBtn: { position: 'absolute', right: '15px', top: '38px', background: 'none', border: 'none', color: '#6EC1E4', fontSize: '0.7rem', fontWeight: 'bold', cursor: 'pointer' },
-  
-  // Forgot Password Elements
+  countryDropdown: { backgroundColor: '#000', border: '1px solid #222', color: '#6EC1E4', padding: '0 10px', fontSize: '0.85rem', cursor: 'pointer', borderRadius: '1px' },
+  showBtn: { position: 'absolute', right: '15px', top: '41px', background: 'none', border: 'none', color: '#6EC1E4', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' },
   forgotContainer: { display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' },
-  forgotBtn: { background: 'none', border: 'none', color: '#6EC1E4', fontSize: '0.8rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' },
-  
-  submitBtn: { backgroundColor: '#FFF', color: '#000', border: 'none', padding: '18px', fontSize: '0.95rem', fontWeight: '900', cursor: 'pointer', marginTop: '10px', borderRadius: '1px' },
-
-  // Maintenance Popup Modal Rules
+  forgotBtn: { background: 'none', border: 'none', color: '#6EC1E4', fontSize: '0.85rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' },
+  submitBtn: { backgroundColor: '#FFF', color: '#000', border: 'none', padding: '20px', fontSize: '1rem', fontWeight: '900', cursor: 'pointer', marginTop: '10px', borderRadius: '1px' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' },
   modalCard: { backgroundColor: '#0A0A0A', border: '1px solid #222', padding: '30px', maxWidth: '420px', width: '100%', borderRadius: '2px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
-  modalTitle: { color: '#FF4D4D', margin: '0 0 15px 0', fontSize: '1.1rem', fontWeight: 'bold', letterSpacing: '0.5px' },
-  modalText: { color: '#AAA', fontSize: '0.85rem', lineHeight: '1.6', margin: '0 0 25px 0' },
-  modalCloseBtn: { backgroundColor: '#222', color: '#FFF', border: '1px solid #333', padding: '10px 20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', width: '100%', borderRadius: '1px', transition: 'background-color 0.2s' }
+  modalTitle: { color: '#FF4D4D', margin: '0 0 15px 0', fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '0.5px' },
+  modalText: { color: '#AAA', fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 25px 0' },
+  modalCloseBtn: { backgroundColor: '#222', color: '#FFF', border: '1px solid #333', padding: '10px 20px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', width: '100%', borderRadius: '1px', transition: 'background-color 0.2s' }
 };
 
 export default Auth;

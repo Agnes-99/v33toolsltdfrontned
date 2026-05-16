@@ -96,10 +96,14 @@ const Footer = () => {
 
           <div style={styles.inputGroup}>
             <input
+              type="email"
               placeholder="ENTER YOUR EMAIL"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
+              style={{
+                ...styles.input,
+                fontSize: isMobile ? '16px' : '0.8rem' // Enforcing a clean 16px font baseline on mobile locks the viewport scaling cleanly
+              }}
             />
             <button onClick={handleSubscribe} style={styles.button}>
               SIGN UP
@@ -163,7 +167,7 @@ const styles = {
   paymentContainer: { marginTop: '10px' },
   paymentTitle: { fontSize: '0.6rem', color: '#555', fontWeight: '900', letterSpacing: '1px', marginBottom: '12px', display: 'block' },
   paymentGrid: { display: 'flex', gap: '18px', alignItems: 'center' },
-  paymentIcon: { height: '20px', width: 'auto', display: 'block' }, // Increased height for visibility
+  paymentIcon: { height: '20px', width: 'auto', display: 'block' }, 
   eftBadge: { fontSize: '0.6rem', fontWeight: '900', color: '#FFF', border: '1px solid #444', padding: '3px 7px', borderRadius: '2px' },
   heading: {
     fontSize: '0.7rem',
@@ -188,16 +192,16 @@ const styles = {
     border: '1px solid #222',
     color: '#FFF',
     padding: '0 15px',
-    fontSize: '0.75rem',
     width: '100%',
-    outline: 'none'
+    outline: 'none',
+    boxSizing: 'border-box'
   },
   button: {
     backgroundColor: '#6EC1E4',
     border: 'none',
     color: '#000',
     padding: '0 25px',
-    fontSize: '0.7rem',
+    fontSize: '0.75rem',
     fontWeight: '900',
     cursor: 'pointer',
     letterSpacing: '1px'

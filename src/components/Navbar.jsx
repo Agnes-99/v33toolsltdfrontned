@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
@@ -17,6 +17,9 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [shouldBump, setShouldBump] = useState(false);
 
+  // NEW: A React reference tied to the nav element block to check click footprints
+  const navRef = useRef(null);
+
   useEffect(() => {
     const handleResize = () => {
       const mobileView = window.innerWidth < 1150;
@@ -24,10 +27,23 @@ const Navbar = () => {
       if (!mobileView) setIsMenuOpen(false);
     };
 
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    // MODIFIED: Closes the drawer immediately if a scroll action triggers while open
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+      setIsMenuOpen(false);
+    };
+
+    // NEW: Closes the menu if the user touches anywhere outside the nav boundary wrapper
+    const handleClickOutside = (event) => {
+      if (navRef.current && !navRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleScroll);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
 
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -41,6 +57,8 @@ const Navbar = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [location]);
 
@@ -62,12 +80,15 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav style={{
-      ...styles.nav,
-      backgroundColor: (isScrolled || isMenuOpen) ? 'rgba(5, 5, 5, 0.98)' : '#000000',
-      borderBottom: (isScrolled || isMenuOpen) ? '1px solid #6EC1E4' : '1px solid #111',
-      height: isMenuOpen ? 'auto' : '90px',
-    }}>
+    <nav 
+      ref={navRef} // NEW: Reference assignment locks click detection calculations to this navbar layout space
+      style={{
+        ...styles.nav,
+        backgroundColor: (isScrolled || isMenuOpen) ? 'rgba(5, 5, 5, 0.98)' : '#000000',
+        borderBottom: (isScrolled || isMenuOpen) ? '1px solid #6EC1E4' : '1px solid #111',
+        height: isMenuOpen ? 'auto' : '90px',
+      }}
+    >
       <div style={styles.navContainer}>
         
         <div style={styles.headerRow}>
@@ -125,7 +146,7 @@ const Navbar = () => {
               ) : (
                 <div style={styles.authContainer}>
                   <Link to="/login" style={styles.loginLink}>SIGN IN</Link>
-                  <Link to="/register" style={styles.registerBtn}>JOIN FLEET</Link>
+                  <Link to="/register" style={styles.registerBtn}>SIGN UP</Link>
                 </div>
               )}
 
@@ -180,12 +201,12 @@ const Navbar = () => {
                     </svg>
                     <span style={styles.userName}>{user.firstName?.toUpperCase()}</span>
                   </Link>
-                  <button onClick={handleLogout} style={styles.logoutBtn}>LOGOUT</button>
+                  <button onClick={handleLogout} style={styles.logoutBtn}>SIGN OUT</button>
                 </div>
               ) : (
                 <div style={styles.mobileAuth}>
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)} style={styles.loginLink}>LOGIN</Link>
-                  <Link to="/register" onClick={() => setIsMenuOpen(false)} style={styles.registerBtn}>JOIN FLEET</Link>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} style={styles.loginLink}>SIGN IN</Link>
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} style={styles.registerBtn}>SIGN UP</Link>
                 </div>
               )}
               

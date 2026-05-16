@@ -3,15 +3,15 @@ import { createContext, useState, useContext, useEffect } from 'react';
 const CurrencyContext = createContext();
 
 const CURRENCIES = {
-  ZAR: { symbol: 'R', rate: 1, label: 'ZAR (South Africa)' },
-  GBP: { symbol: '£', rate: 0.042, label: 'GBP (United Kingdom)' },
-  USD: { symbol: '$', rate: 0.054, label: 'USD (United States)' },
-  EUR: { symbol: '€', rate: 0.050, label: 'EUR (Europe)' },
+  ZAR: { symbol: 'R', rate: 1, label: ' ZAR (South Africa)' },
+  GBP: { symbol: '£', rate: 0.042, label: ' GBP (United Kingdom)' },
+  USD: { symbol: '$', rate: 0.054, label: ' USD (United States)' },
+  EUR: { symbol: '€', rate: 0.050, label: ' EUR (Europe)' },
 };
 
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState(() => {
-    return localStorage.getItem('v33_currency') || 'ZAR';
+    return localStorage.getItem('v33_currency') || ' ZAR';
   });
 
   useEffect(() => {
